@@ -12,15 +12,23 @@ export const kakaoLoadPromise = new Promise((resolve) => {
 
 // 카카오 키워드 검색으로 지오코딩. 국내 동/면 단위까지 정확하게 잡아줌
 // (Open-Meteo 지오코딩은 "삼성동" 검색 시 평양이 1순위로 나오는 등 국내 지명 정확도가 낮아서 대체).
-// "가평"처럼 순수 행정구역 이름을 검색하면 카카오가 관련 상호명/POI를 1순위로 잡아버릴 수 있어서,
-// 결과 중 카테고리가 "행정구역"인 항목이 있으면 그걸 우선 사용함.
+// "가평"·"서울"처럼 순수 행정구역 이름을 검색하면 카카오가 관련 상호명/POI나 그 안의 특정 구/동을
+// 1순위로 잡아버릴 수 있어서, 행정구역 카테고리 결과 중 검색어의 모든 단어를 포함하면서 가장 짧은(=검색어가
+// 지정한 딱 그 범위인) 항목을 우선 사용함. 예: "서울" -> "서울특별시", "서울 중랑구" -> "서울특별시 중랑구"
+// (검색어 단어를 다 포함하는 후보만 보기 때문에 "서울특별시"로 뭉뚱그려지지 않음).
 function geocodeKakao(query) {
   return new Promise((resolve) => {
     if (!window.kakao || !window.kakao.maps) { resolve(null); return; }
     const places = new kakao.maps.services.Places();
     places.keywordSearch(query, (data, status) => {
       if (status === kakao.maps.services.Status.OK && data.length > 0) {
-        const r = data.find(d => d.category_name?.startsWith("행정구역")) || data[0];
+        const adminMatches = data.filter(d => d.category_name?.startsWith("행정구역"));
+        const queryWords = query.split(/\s+/).filter(Boolean);
+        const covering = adminMatches.filter(d => queryWords.every(w => d.address_name.includes(w)));
+        const pool = covering.length > 0 ? covering : adminMatches;
+        const r = pool.length > 0
+          ? pool.reduce((broadest, cur) => cur.address_name.length < broadest.address_name.length ? cur : broadest)
+          : data[0];
         resolve({
           name: r.address_name || r.place_name,
           admin1: "",
