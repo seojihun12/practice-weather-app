@@ -94,12 +94,56 @@ async function geocode(city) {
   return data.results[0];
 }
 
+// ---- 오늘/내일을 새벽·오전·오후·저녁 4구간으로 요약 (비가 언제 오고 언제 그치는지 한눈에 보이게) ----
+const DAY_PERIODS = [
+  { key: "dawn", label: "새벽", from: 0, to: 6 },
+  { key: "morning", label: "오전", from: 6, to: 12 },
+  { key: "afternoon", label: "오후", from: 12, to: 18 },
+  { key: "evening", label: "저녁", from: 18, to: 24 },
+];
+
+function summarizePeriod(hours) {
+  if (hours.length === 0) return null;
+  const temps = hours.map(h => h.temp);
+  const max = Math.max(...temps);
+  const min = Math.min(...temps);
+  const pop = Math.max(...hours.map(h => h.pop ?? 0));
+  const rainCodes = hours.map(h => h.code).filter(c => c >= 51);
+  const repCode = rainCodes.length > 0
+    ? Math.max(...rainCodes)
+    : hours[Math.floor(hours.length / 2)].code;
+  return {
+    desc: describeWeatherCode(repCode),
+    max,
+    min,
+    pop: Math.round(pop),
+    hasRain: rainCodes.length > 0,
+  };
+}
+
+function buildDayTimeline(hourly, dateStr, label) {
+  const buckets = { dawn: [], morning: [], afternoon: [], evening: [] };
+
+  hourly.time.forEach((t, i) => {
+    if (!t.startsWith(dateStr)) return;
+    const hour = Number(t.slice(11, 13));
+    const item = { temp: hourly.temperature_2m[i], code: hourly.weather_code[i], pop: hourly.precipitation_probability[i] };
+    const period = DAY_PERIODS.find(p => hour >= p.from && hour < p.to);
+    if (period) buckets[period.key].push(item);
+  });
+
+  return {
+    label,
+    periods: DAY_PERIODS.map(p => ({ label: p.label, ...(summarizePeriod(buckets[p.key]) || { desc: "-", max: null, min: null, pop: 0, hasRain: false }) })),
+  };
+}
+
 // ---- 소스 1: Open-Meteo (키 불필요) ----
 async function fetchOpenMeteo(place) {
   const res = await fetch(
     `https://api.open-meteo.com/v1/forecast?latitude=${place.latitude}&longitude=${place.longitude}` +
     `&current=temperature_2m,relative_humidity_2m,apparent_temperature,wind_speed_10m` +
-    `&hourly=temperature_2m,weather_code` +
+    `&hourly=temperature_2m,weather_code,precipitation_probability` +
     `&daily=weather_code,temperature_2m_max,temperature_2m_min` +
     `&timezone=auto&forecast_days=7`
   );
@@ -127,6 +171,11 @@ async function fetchOpenMeteo(place) {
     desc: describeWeatherCode(hourly.weather_code[startIdx + i]),
   }));
 
+  const dayTimelines = [
+    buildDayTimeline(hourly, daily.time[0], "오늘"),
+    buildDayTimeline(hourly, daily.time[1], "내일"),
+  ];
+
   return {
     temp: `${current.temperature_2m}°C`,
     feelsLike: `${current.apparent_temperature}°C`,
@@ -134,6 +183,7 @@ async function fetchOpenMeteo(place) {
     wind: `${current.wind_speed_10m} km/h`,
     forecast,
     hourlyForecast,
+    dayTimelines,
   };
 }
 
@@ -352,6 +402,23 @@ function renderForecastDay(day, kmaForecast) {
     </div>`;
 }
 
+function renderDayTimeline(timeline) {
+  return `
+    <div class="timeline-row">
+      <div class="timeline-label">${timeline.label}</div>
+      <div class="timeline-periods">
+        ${timeline.periods.map(p => `
+          <div class="timeline-period${p.hasRain ? " rain" : ""}">
+            <div class="tp-label">${p.label}</div>
+            <div class="tp-desc">${p.desc}</div>
+            ${p.max !== null ? `<div class="tp-temp">${p.max}° / ${p.min}°</div>` : ""}
+            ${p.pop > 0 ? `<div class="tp-pop">강수 ${p.pop}%</div>` : ""}
+          </div>
+        `).join("")}
+      </div>
+    </div>`;
+}
+
 function renderCityBlock(data) {
   if (!data.ok) {
     return `
@@ -364,6 +431,9 @@ function renderCityBlock(data) {
   return `
     <div class="city-block">
       <div class="place-name">${data.label}</div>
+
+      <div class="section-label">오늘 · 내일 한눈에 보기</div>
+      ${data.openMeteo.dayTimelines.map(renderDayTimeline).join("")}
 
       ${renderTempCompare(data)}
 
