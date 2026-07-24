@@ -76,6 +76,7 @@ async function fetchOpenMeteo(place) {
   if (startIdx === -1) startIdx = 0;
 
   const hourlyForecast = hourly.time.slice(startIdx, startIdx + 12).map((t, i) => ({
+    hour: Number(t.slice(11, 13)),
     label: formatHourLabel(t, i),
     temp: hourly.temperature_2m[startIdx + i],
     desc: describeWeatherCode(hourly.weather_code[startIdx + i]),
@@ -177,6 +178,62 @@ async function fetchKma(place) {
   };
 }
 
+// getUltraSrtFcst(초단기예보)는 매시 30분에 발표되고 10분 뒤(매시 40분)부터 조회 가능
+function getUltraSrtFcstBaseDateTime() {
+  const now = new Date();
+  if (now.getMinutes() < 40) now.setHours(now.getHours() - 1);
+  const pad = (n) => String(n).padStart(2, "0");
+  const base_date = `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}`;
+  const base_time = `${pad(now.getHours())}30`;
+  return { base_date, base_time };
+}
+
+// 기상청 초단기예보: 1시간 간격으로 최대 6시간까지 기온·하늘상태·강수형태 제공
+async function fetchKmaHourly(place) {
+  const { nx, ny } = latLonToKmaGrid(place.latitude, place.longitude);
+  const { base_date, base_time } = getUltraSrtFcstBaseDateTime();
+
+  const url =
+    `https://apis.data.go.kr/1360000/VilageFcstInfoService_2.0/getUltraSrtFcst` +
+    `?serviceKey=${encodeURIComponent(KMA_KEY)}&pageNo=1&numOfRows=100&dataType=JSON` +
+    `&base_date=${base_date}&base_time=${base_time}&nx=${nx}&ny=${ny}`;
+
+  const res = await fetch(url);
+  const text = await res.text();
+
+  let data;
+  try {
+    data = JSON.parse(text);
+  } catch {
+    return { error: "응답 형식 오류" };
+  }
+
+  const header = data?.response?.header;
+  if (!header || header.resultCode !== "00") {
+    return { error: header?.resultMsg || "조회 실패" };
+  }
+
+  const items = data.response.body.items.item;
+  const byTime = {};
+  items.forEach(it => {
+    const t = (byTime[it.fcstTime] ||= {});
+    if (it.category === "T1H") t.temp = Number(it.fcstValue);
+    if (it.category === "SKY") t.sky = Number(it.fcstValue);
+    if (it.category === "PTY") t.pty = Number(it.fcstValue);
+  });
+
+  const hours = Object.keys(byTime).sort().map(fcstTime => {
+    const t = byTime[fcstTime];
+    return {
+      hour: Number(fcstTime.slice(0, 2)),
+      temp: t.temp,
+      desc: t.pty > 0 ? describeKmaPty(t.pty) : describeKmaSky(t.sky),
+    };
+  });
+
+  return { hours };
+}
+
 // getVilageFcst(단기예보)는 하루 8번(02,05,08,11,14,17,20,23시) 발표되고, 발표 후 약 10분 뒤부터 조회 가능
 function getVilageFcstBaseDateTime() {
   const issueTimes = [2, 5, 8, 11, 14, 17, 20, 23];
@@ -249,10 +306,11 @@ export async function fetchCityWeather(city) {
   const place = await geocode(city);
   if (!place) return { ok: false, query: city };
 
-  const [openMeteo, kma, kmaForecast] = await Promise.all([
+  const [openMeteo, kma, kmaForecast, kmaHourly] = await Promise.all([
     fetchOpenMeteo(place),
     fetchKma(place).catch(err => ({ error: err.message })),
     fetchKmaForecast(place).catch(err => ({ error: err.message })),
+    fetchKmaHourly(place).catch(err => ({ error: err.message })),
   ]);
 
   return {
@@ -262,5 +320,6 @@ export async function fetchCityWeather(city) {
     openMeteo,
     kma,
     kmaForecast,
+    kmaHourly,
   };
 }

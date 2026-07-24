@@ -92,7 +92,7 @@ export function renderCityBlock(data, index) {
 
       <div class="week-details hidden">
         <div class="chart-block">
-          <div class="section-label">시간대별 기온 · 강수확률</div>
+          <div class="section-label">시간대별 기온 · 강수확률 (파랑 실선 Open-Meteo · 주황 점선 기상청 최대 6시간)</div>
           <canvas class="hourly-chart" data-city-index="${index}"></canvas>
         </div>
 

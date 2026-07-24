@@ -1,5 +1,5 @@
-// 시간대별 기온(선 그래프) + 강수확률(막대 그래프)을 하나의 캔버스에 그림
-export function drawHourlyChart(canvas, hourlyForecast) {
+// 시간대별 기온(선 그래프, Open-Meteo 실선 + 기상청 초단기예보 점선) + 강수확률(막대 그래프)을 하나의 캔버스에 그림
+export function drawHourlyChart(canvas, hourlyForecast, kmaHourly) {
   const dpr = window.devicePixelRatio || 1;
   const cssW = canvas.clientWidth || 280;
   const cssH = 168;
@@ -15,8 +15,14 @@ export function drawHourlyChart(canvas, hourlyForecast) {
   const chartW = cssW - padL - padR;
   const n = hourlyForecast.length;
   const xStep = chartW / (n - 1);
+
+  // 기상청 초단기예보는 hour(0~23) 기준이라, Open-Meteo 시간대별 배열의 같은 hour 위치에 맞춰 정렬
+  const kmaByHour = new Map((kmaHourly?.hours || []).map(h => [h.hour, h.temp]));
+  const kmaAligned = hourlyForecast.map(h => kmaByHour.has(h.hour) ? kmaByHour.get(h.hour) : null);
+
   const temps = hourlyForecast.map(h => h.temp);
-  const minT = Math.min(...temps), maxT = Math.max(...temps);
+  const allTemps = temps.concat(kmaAligned.filter(v => v !== null));
+  const minT = Math.min(...allTemps), maxT = Math.max(...allTemps);
   const range = (maxT - minT) || 1;
 
   const xAt = i => padL + i * xStep;
@@ -37,6 +43,20 @@ export function drawHourlyChart(canvas, hourlyForecast) {
   ctx.strokeStyle = "#0f5b8c";
   ctx.lineWidth = 2;
   ctx.stroke();
+
+  // 기상청 값이 있는 시간대만 주황 점선으로 이어 그림 (최대 6시간)
+  ctx.beginPath();
+  ctx.setLineDash([4, 3]);
+  let started = false;
+  kmaAligned.forEach((v, i) => {
+    if (v === null) { started = false; return; }
+    const x = xAt(i), y = yAt(v);
+    if (!started) { ctx.moveTo(x, y); started = true; } else { ctx.lineTo(x, y); }
+  });
+  ctx.strokeStyle = "#f97316";
+  ctx.lineWidth = 2;
+  ctx.stroke();
+  ctx.setLineDash([]);
 
   ctx.fillStyle = "#0f5b8c";
   ctx.font = "10px sans-serif";

@@ -47,7 +47,7 @@ resultsContainer.addEventListener("click", (e) => {
     const cityData = cityDataStore[index];
     const hourlyCanvas = details.querySelector(".hourly-chart");
     const weeklyCanvas = details.querySelector(".weekly-chart");
-    drawHourlyChart(hourlyCanvas, cityData.openMeteo.hourlyForecast);
+    drawHourlyChart(hourlyCanvas, cityData.openMeteo.hourlyForecast, cityData.kmaHourly);
     drawWeeklyChart(weeklyCanvas, cityData.openMeteo.forecast, cityData.kmaForecast);
     details.dataset.drawn = "1";
   }
