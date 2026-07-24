@@ -321,7 +321,7 @@ h1::before { content: "☁️ "; -webkit-text-fill-color: initial; }
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
 }
-.hourly-chart { height: 162px; }
+.hourly-chart { height: 168px; }
 .weekly-chart { height: 140px; }
 
 @media (max-width: 420px) {

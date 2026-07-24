@@ -2,7 +2,7 @@
 export function drawHourlyChart(canvas, hourlyForecast) {
   const dpr = window.devicePixelRatio || 1;
   const cssW = canvas.clientWidth || 280;
-  const cssH = 162;
+  const cssH = 168;
   canvas.width = cssW * dpr;
   canvas.height = cssH * dpr;
   const ctx = canvas.getContext("2d");
@@ -58,13 +58,13 @@ export function drawHourlyChart(canvas, hourlyForecast) {
     ctx.fillRect(x - 6, barBaseY + (barH - bh), 12, bh);
   });
 
-  // 라벨이 촘촘해서 겹치지 않도록 한 칸씩 위/아래로 지그재그 배치
+  // 강수 막대 아래, 그래프 선 밖으로 한 줄로 표시
   ctx.fillStyle = "#94a3b8";
   ctx.font = "8px sans-serif";
   ctx.textAlign = "center";
+  const labelY = barBaseY + barH + 12;
   hourlyForecast.forEach((h, i) => {
-    const y = i % 2 === 0 ? cssH - 12 : cssH - 2;
-    ctx.fillText(h.label.replace("시", ""), xAt(i), y);
+    ctx.fillText(h.label.replace("시", ""), xAt(i), labelY);
   });
 }
 
