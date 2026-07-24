@@ -33,13 +33,41 @@ function geocodeKakao(query) {
   });
 }
 
-// 도시/동네 이름 -> 위도/경도. 카카오로 먼저 시도하고(국내 지명 정확도가 더 좋음),
-// 카카오가 못 찾으면(해외 도시 등) Open-Meteo 지오코딩으로 재시도.
+// 카카오 주소 검색(Geocoder)으로 지오코딩. keywordSearch는 상호명/장소명 검색에 최적화돼 있어서
+// 상호명 없는 순수 도로명·지번 주소(예: "용추로171번길 100")는 못 찾는 경우가 있어 보완용으로 사용.
+function geocodeKakaoAddress(query) {
+  return new Promise((resolve) => {
+    if (!window.kakao || !window.kakao.maps) { resolve(null); return; }
+    const geocoder = new kakao.maps.services.Geocoder();
+    geocoder.addressSearch(query, (data, status) => {
+      if (status === kakao.maps.services.Status.OK && data.length > 0) {
+        const r = data[0];
+        resolve({
+          name: r.address_name,
+          admin1: "",
+          country: "대한민국",
+          latitude: parseFloat(r.y),
+          longitude: parseFloat(r.x),
+        });
+      } else {
+        resolve(null);
+      }
+    });
+  });
+}
+
+// 도시/동네 이름 -> 위도/경도.
+// 1) 카카오 키워드 검색(장소명/동네 이름에 강함)
+// 2) 카카오 주소 검색(도로명·지번 주소에 강함)
+// 3) Open-Meteo 지오코딩(해외 도시 등 카카오가 못 찾는 경우)
 export async function geocode(city) {
   await kakaoLoadPromise;
 
   const kakaoResult = await geocodeKakao(city);
   if (kakaoResult) return kakaoResult;
+
+  const addressResult = await geocodeKakaoAddress(city);
+  if (addressResult) return addressResult;
 
   const res = await fetch(
     `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(city)}&count=1&language=ko`
