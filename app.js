@@ -6,6 +6,17 @@ const resultsContainer = document.getElementById("resultsContainer");
 // 기상청 API 인증키. 코드에만 존재하며 화면에는 노출되지 않음.
 const KMA_KEY = "60d0f885d832f29ab3ca30908375c57db9c3d27dcf2d61cc6f9d32da02022f66";
 
+// 카카오 JavaScript 키. 도메인 화이트리스트로 보호되는 공개용 키라 코드에 있어도 됨.
+const KAKAO_JS_KEY = "a748c6007515dc9de3e8ed0e03284441";
+
+const kakaoLoadPromise = new Promise((resolve) => {
+  const script = document.createElement("script");
+  script.src = `https://dapi.kakao.com/v2/maps/sdk.js?appkey=${KAKAO_JS_KEY}&autoload=false&libraries=services`;
+  script.onload = () => window.kakao.maps.load(resolve);
+  script.onerror = () => resolve(); // 로드 실패해도 앱은 계속 동작 (해외 도시는 Open-Meteo로 처리)
+  document.head.appendChild(script);
+});
+
 // ---- 날씨 코드 설명 ----
 const WEATHER_CODES = {
   0: "맑음", 1: "대체로 맑음", 2: "구름 조금", 3: "흐림",
@@ -46,8 +57,35 @@ function formatHourLabel(timeStr, index) {
   return `${hour}시`;
 }
 
-// ---- 공통: 도시 이름 -> 위도/경도 ----
+// ---- 공통: 도시/동네 이름 -> 위도/경도 ----
+// 국내 지명(동/면 단위 포함)은 카카오로, 카카오가 못 찾으면(해외 도시 등) Open-Meteo로 재시도
+function geocodeKakao(query) {
+  return new Promise((resolve) => {
+    if (!window.kakao || !window.kakao.maps) { resolve(null); return; }
+    const places = new kakao.maps.services.Places();
+    places.keywordSearch(query, (data, status) => {
+      if (status === kakao.maps.services.Status.OK && data.length > 0) {
+        const r = data[0];
+        resolve({
+          name: r.address_name || r.place_name,
+          admin1: "",
+          country: "대한민국",
+          latitude: parseFloat(r.y),
+          longitude: parseFloat(r.x),
+        });
+      } else {
+        resolve(null);
+      }
+    });
+  });
+}
+
 async function geocode(city) {
+  await kakaoLoadPromise;
+
+  const kakaoResult = await geocodeKakao(city);
+  if (kakaoResult) return kakaoResult;
+
   const res = await fetch(
     `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(city)}&count=1&language=ko`
   );
