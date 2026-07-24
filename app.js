@@ -169,6 +169,7 @@ async function fetchOpenMeteo(place) {
     label: formatHourLabel(t, i),
     temp: hourly.temperature_2m[startIdx + i],
     desc: describeWeatherCode(hourly.weather_code[startIdx + i]),
+    pop: hourly.precipitation_probability[startIdx + i],
   }));
 
   const dayTimelines = [
@@ -419,7 +420,7 @@ function renderDayTimeline(timeline) {
     </div>`;
 }
 
-function renderCityBlock(data) {
+function renderCityBlock(data, index) {
   if (!data.ok) {
     return `
       <div class="city-block error">
@@ -435,30 +436,176 @@ function renderCityBlock(data) {
       <div class="section-label">오늘 · 내일 한눈에 보기</div>
       ${data.openMeteo.dayTimelines.map(renderDayTimeline).join("")}
 
-      ${renderTempCompare(data)}
+      <button type="button" class="toggle-week-btn" data-city-index="${index}">이번주 예보 자세히 보기 ▾</button>
 
-      <div class="provider-row">
-        ${renderProviderBlock("Open-Meteo", data.openMeteo)}
-        ${renderProviderBlock("기상청", data.kma)}
-      </div>
+      <div class="week-details hidden">
+        <div class="chart-block">
+          <div class="section-label">시간대별 기온 · 강수확률</div>
+          <canvas class="hourly-chart" data-city-index="${index}"></canvas>
+        </div>
 
-      <div class="section-label">시간대별 예보 (Open-Meteo)</div>
-      <div class="hourly-row">
-        ${data.openMeteo.hourlyForecast.map(h => `
-          <div class="hourly-item">
-            <div class="hourly-label">${h.label}</div>
-            <div class="hourly-temp">${h.temp}°</div>
-            <div class="hourly-desc">${h.desc}</div>
-          </div>
-        `).join("")}
-      </div>
+        ${renderTempCompare(data)}
 
-      <div class="section-label">이번 주 예보 비교 (Open-Meteo · 기상청 최대 3일)</div>
-      <div class="forecast-row">
-        ${data.openMeteo.forecast.map(day => renderForecastDay(day, data.kmaForecast)).join("")}
+        <div class="provider-row">
+          ${renderProviderBlock("Open-Meteo", data.openMeteo)}
+          ${renderProviderBlock("기상청", data.kma)}
+        </div>
+
+        <div class="section-label">시간대별 예보 (Open-Meteo)</div>
+        <div class="hourly-row">
+          ${data.openMeteo.hourlyForecast.map(h => `
+            <div class="hourly-item">
+              <div class="hourly-label">${h.label}</div>
+              <div class="hourly-temp">${h.temp}°</div>
+              <div class="hourly-desc">${h.desc}</div>
+            </div>
+          `).join("")}
+        </div>
+
+        <div class="chart-block">
+          <div class="section-label">주간 기온 비교 (빨강 Open-Meteo 최고 · 파랑 Open-Meteo 최저 · 주황 점선 기상청 최고)</div>
+          <canvas class="weekly-chart" data-city-index="${index}"></canvas>
+        </div>
+
+        <div class="section-label">이번 주 예보 비교 (Open-Meteo · 기상청 최대 3일)</div>
+        <div class="forecast-row">
+          ${data.openMeteo.forecast.map(day => renderForecastDay(day, data.kmaForecast)).join("")}
+        </div>
       </div>
     </div>`;
 }
+
+// ---- 캔버스 차트 ----
+function drawHourlyChart(canvas, hourlyForecast) {
+  const dpr = window.devicePixelRatio || 1;
+  const cssW = canvas.clientWidth || 280;
+  const cssH = 150;
+  canvas.width = cssW * dpr;
+  canvas.height = cssH * dpr;
+  const ctx = canvas.getContext("2d");
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, cssW, cssH);
+
+  const padL = 26, padR = 8, padT = 14;
+  const tempH = 88;
+  const barH = 26;
+  const chartW = cssW - padL - padR;
+  const n = hourlyForecast.length;
+  const xStep = chartW / (n - 1);
+  const temps = hourlyForecast.map(h => h.temp);
+  const minT = Math.min(...temps), maxT = Math.max(...temps);
+  const range = (maxT - minT) || 1;
+
+  const xAt = i => padL + i * xStep;
+  const yAt = t => padT + tempH - ((t - minT) / range) * (tempH - 20) - 10;
+
+  ctx.strokeStyle = "#e6ebf1";
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(padL, padT + tempH);
+  ctx.lineTo(padL + chartW, padT + tempH);
+  ctx.stroke();
+
+  ctx.beginPath();
+  hourlyForecast.forEach((h, i) => {
+    const x = xAt(i), y = yAt(h.temp);
+    if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+  });
+  ctx.strokeStyle = "#0f5b8c";
+  ctx.lineWidth = 2;
+  ctx.stroke();
+
+  ctx.fillStyle = "#0f5b8c";
+  ctx.font = "10px sans-serif";
+  ctx.textAlign = "center";
+  hourlyForecast.forEach((h, i) => {
+    const x = xAt(i), y = yAt(h.temp);
+    ctx.beginPath();
+    ctx.arc(x, y, 2.5, 0, Math.PI * 2);
+    ctx.fill();
+    if (i % 2 === 0) ctx.fillText(`${Math.round(h.temp)}°`, x, y - 6);
+  });
+
+  const barBaseY = padT + tempH + 18;
+  hourlyForecast.forEach((h, i) => {
+    const x = xAt(i);
+    const pop = h.pop || 0;
+    const bh = (pop / 100) * barH;
+    ctx.fillStyle = pop >= 50 ? "#2563eb" : "#93c5fd";
+    ctx.fillRect(x - 6, barBaseY + (barH - bh), 12, bh);
+  });
+
+  ctx.fillStyle = "#94a3b8";
+  ctx.font = "9px sans-serif";
+  hourlyForecast.forEach((h, i) => {
+    if (i % 2 !== 0) return;
+    ctx.fillText(h.label, xAt(i), cssH - 4);
+  });
+}
+
+function drawWeeklyChart(canvas, forecast, kmaForecast) {
+  const dpr = window.devicePixelRatio || 1;
+  const cssW = canvas.clientWidth || 280;
+  const cssH = 140;
+  canvas.width = cssW * dpr;
+  canvas.height = cssH * dpr;
+  const ctx = canvas.getContext("2d");
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, cssW, cssH);
+
+  const padL = 28, padR = 8, padT = 12, padB = 20;
+  const chartW = cssW - padL - padR;
+  const chartH = cssH - padT - padB;
+  const n = forecast.length;
+  const xStep = chartW / (n - 1);
+
+  const kmaByDate = forecast.map(d => kmaForecast?.days?.find(k => k.dateKey === d.dateKey) || null);
+  const values = forecast.flatMap(d => [d.max, d.min]);
+  kmaByDate.forEach(k => { if (k) values.push(k.max); });
+  const minT = Math.min(...values), maxT = Math.max(...values);
+  const range = (maxT - minT) || 1;
+
+  const xAt = i => padL + i * xStep;
+  const yAt = v => padT + chartH - ((v - minT) / range) * chartH;
+
+  ctx.strokeStyle = "#e6ebf1";
+  ctx.lineWidth = 1;
+  [0, 0.5, 1].forEach(f => {
+    const y = padT + chartH * f;
+    ctx.beginPath();
+    ctx.moveTo(padL, y);
+    ctx.lineTo(padL + chartW, y);
+    ctx.stroke();
+  });
+
+  function drawLine(vals, color, dashed) {
+    ctx.beginPath();
+    ctx.setLineDash(dashed ? [4, 3] : []);
+    let started = false;
+    vals.forEach((v, i) => {
+      if (v === null || v === undefined) { started = false; return; }
+      const x = xAt(i), y = yAt(v);
+      if (!started) { ctx.moveTo(x, y); started = true; } else { ctx.lineTo(x, y); }
+    });
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
+
+  drawLine(forecast.map(d => d.max), "#dc2626", false);
+  drawLine(forecast.map(d => d.min), "#2563eb", false);
+  drawLine(kmaByDate.map(k => (k ? k.max : null)), "#f97316", true);
+
+  ctx.fillStyle = "#94a3b8";
+  ctx.font = "9px sans-serif";
+  ctx.textAlign = "center";
+  forecast.forEach((d, i) => {
+    ctx.fillText(d.label.replace(/\s*\(.+\)/, ""), xAt(i), cssH - 4);
+  });
+}
+
+let cityDataStore = [];
 
 async function searchCities(rawInput) {
   const cities = rawInput
@@ -473,13 +620,34 @@ async function searchCities(rawInput) {
 
   try {
     const results = await Promise.all(cities.map(fetchCityWeather));
-    resultsContainer.innerHTML = results.map(renderCityBlock).join("");
+    cityDataStore = results;
+    resultsContainer.innerHTML = results.map((r, i) => renderCityBlock(r, i)).join("");
     statusMsg.textContent = "";
   } catch (err) {
     statusMsg.textContent = "데이터를 가져오는 중 오류가 발생했어요. 인터넷 연결을 확인해주세요.";
     console.error(err);
   }
 }
+
+// 펼치기 버튼을 누를 때만 차트를 그림 (숨겨진 상태에서는 캔버스 너비가 0이라 미리 그릴 수 없음)
+resultsContainer.addEventListener("click", (e) => {
+  const btn = e.target.closest(".toggle-week-btn");
+  if (!btn) return;
+
+  const details = btn.nextElementSibling;
+  const nowHidden = details.classList.toggle("hidden");
+  btn.textContent = nowHidden ? "이번주 예보 자세히 보기 ▾" : "이번주 예보 접기 ▴";
+
+  if (!nowHidden && !details.dataset.drawn) {
+    const index = Number(btn.dataset.cityIndex);
+    const cityData = cityDataStore[index];
+    const hourlyCanvas = details.querySelector(".hourly-chart");
+    const weeklyCanvas = details.querySelector(".weekly-chart");
+    drawHourlyChart(hourlyCanvas, cityData.openMeteo.hourlyForecast);
+    drawWeeklyChart(weeklyCanvas, cityData.openMeteo.forecast, cityData.kmaForecast);
+    details.dataset.drawn = "1";
+  }
+});
 
 form.addEventListener("submit", (e) => {
   e.preventDefault();
