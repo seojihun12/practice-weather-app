@@ -145,7 +145,7 @@ async function fetchKma(place) {
   const { base_date, base_time } = getKmaBaseDateTime();
 
   const url =
-    `http://apis.data.go.kr/1360000/VilageFcstInfoService_2.0/getUltraSrtNcst` +
+    `https://apis.data.go.kr/1360000/VilageFcstInfoService_2.0/getUltraSrtNcst` +
     `?serviceKey=${encodeURIComponent(KMA_KEY)}&pageNo=1&numOfRows=20&dataType=JSON` +
     `&base_date=${base_date}&base_time=${base_time}&nx=${nx}&ny=${ny}`;
 
@@ -198,7 +198,7 @@ async function fetchKmaForecast(place) {
   const { base_date, base_time } = getVilageFcstBaseDateTime();
 
   const url =
-    `http://apis.data.go.kr/1360000/VilageFcstInfoService_2.0/getVilageFcst` +
+    `https://apis.data.go.kr/1360000/VilageFcstInfoService_2.0/getVilageFcst` +
     `?serviceKey=${encodeURIComponent(KMA_KEY)}&pageNo=1&numOfRows=1000&dataType=JSON` +
     `&base_date=${base_date}&base_time=${base_time}&nx=${nx}&ny=${ny}`;
 
