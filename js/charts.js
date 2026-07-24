@@ -59,9 +59,9 @@ export function drawHourlyChart(canvas, hourlyForecast) {
   });
 
   ctx.fillStyle = "#94a3b8";
-  ctx.font = "9px sans-serif";
+  ctx.font = "8px sans-serif";
+  ctx.textAlign = "center";
   hourlyForecast.forEach((h, i) => {
-    if (i % 2 !== 0) return;
     ctx.fillText(h.label, xAt(i), cssH - 4);
   });
 }
