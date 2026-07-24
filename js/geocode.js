@@ -10,42 +10,9 @@ export const kakaoLoadPromise = new Promise((resolve) => {
   document.head.appendChild(script);
 });
 
-function hasHangul(text) {
-  return /[가-힣]/.test(text);
-}
-
-// "삼성동"처럼 동/읍/면/리로 끝나거나 "용추로171번길 100"처럼 숫자(번지·건물번호)가 포함되면
-// 세부 주소로 간주. 이런 건 카카오가 정확하고 Open-Meteo는 부정확(북한 지명과 혼동 등)함.
-// 반대로 "서울"·"가평군"처럼 넓은 행정구역 이름은 카카오 키워드 검색이 관광명소 등 엉뚱한 장소를
-// 1순위로 주는 문제가 있어서, Open-Meteo(도시 중심 좌표 제공)를 먼저 시도함.
-function looksLikeDetailedAddress(text) {
-  return /(동|읍|면|리)$/.test(text.trim()) || /\d/.test(text);
-}
-
-// 카카오 키워드 검색으로 지오코딩. 동/읍/면 단위 상세 지명이나 도로명주소, 랜드마크에 강함.
-function geocodeKakao(query) {
-  return new Promise((resolve) => {
-    if (!window.kakao || !window.kakao.maps) { resolve(null); return; }
-    const places = new kakao.maps.services.Places();
-    places.keywordSearch(query, (data, status) => {
-      if (status === kakao.maps.services.Status.OK && data.length > 0) {
-        const r = data[0];
-        resolve({
-          name: r.address_name || r.place_name,
-          admin1: "",
-          country: "대한민국",
-          latitude: parseFloat(r.y),
-          longitude: parseFloat(r.x),
-        });
-      } else {
-        resolve(null);
-      }
-    });
-  });
-}
-
-// 카카오 주소 검색(Geocoder)으로 지오코딩. keywordSearch는 상호명/장소명 검색에 최적화돼 있어서
-// 상호명 없는 순수 도로명·지번 주소(예: "용추로171번길 100")는 못 찾는 경우가 있어 보완용으로 사용.
+// 카카오 주소 검색(Geocoder). 실제로는 "경기 가평군" -> address_type: REGION, "서울특별시" -> REGION처럼
+// 행정구역 이름이든 "용추로171번길 100" 같은 도로명주소든 카카오 공식 주소 체계 그대로 정확히 잡아줌.
+// keywordSearch(장소/상호명 검색)보다 신뢰도가 높아서 국내 지명은 이걸 최우선으로 사용.
 function geocodeKakaoAddress(query) {
   return new Promise((resolve) => {
     if (!window.kakao || !window.kakao.maps) { resolve(null); return; }
@@ -67,32 +34,46 @@ function geocodeKakaoAddress(query) {
   });
 }
 
-// Open-Meteo 지오코딩. 전 세계 도시/행정구역 이름에 강하지만, 국내 동 단위 이하는
-// 북한 지명과 혼동되는 등 정확도가 낮음 (예: "삼성동" -> 평양).
-async function geocodeOpenMeteo(query) {
-  const res = await fetch(
-    `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(query)}&count=1&language=ko`
-  );
-  const data = await res.json();
-  if (!data.results || data.results.length === 0) return null;
-  return data.results[0];
+// 카카오 키워드 검색. "강남역"·"경복궁"처럼 정식 주소가 아닌 랜드마크/장소명 검색에 강함.
+// addressSearch가 못 찾을 때만 보완용으로 사용.
+function geocodeKakao(query) {
+  return new Promise((resolve) => {
+    if (!window.kakao || !window.kakao.maps) { resolve(null); return; }
+    const places = new kakao.maps.services.Places();
+    places.keywordSearch(query, (data, status) => {
+      if (status === kakao.maps.services.Status.OK && data.length > 0) {
+        const r = data[0];
+        resolve({
+          name: r.address_name || r.place_name,
+          admin1: "",
+          country: "대한민국",
+          latitude: parseFloat(r.y),
+          longitude: parseFloat(r.x),
+        });
+      } else {
+        resolve(null);
+      }
+    });
+  });
 }
 
 // 도시/동네 이름 -> 위도/경도.
+// 1) 카카오 주소 검색(행정구역·도로명·지번 주소를 카카오 공식 체계로 정확히 매칭)
+// 2) 카카오 키워드 검색(정식 주소가 아닌 랜드마크·장소명)
+// 3) Open-Meteo 지오코딩(해외 도시 등 카카오가 못 찾는 경우)
 export async function geocode(city) {
   await kakaoLoadPromise;
-
-  if (!looksLikeDetailedAddress(city)) {
-    const omResult = await geocodeOpenMeteo(city);
-    // 한글 검색인데 결과가 한국이 아니면(북한 등 오매칭) 신뢰하지 않고 카카오로 넘어감
-    if (omResult && (!hasHangul(city) || omResult.country_code === "KR")) return omResult;
-  }
-
-  const kakaoResult = await geocodeKakao(city);
-  if (kakaoResult) return kakaoResult;
 
   const addressResult = await geocodeKakaoAddress(city);
   if (addressResult) return addressResult;
 
-  return await geocodeOpenMeteo(city);
+  const kakaoResult = await geocodeKakao(city);
+  if (kakaoResult) return kakaoResult;
+
+  const res = await fetch(
+    `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(city)}&count=1&language=ko`
+  );
+  const data = await res.json();
+  if (!data.results || data.results.length === 0) return null;
+  return data.results[0];
 }
