@@ -1,6 +1,7 @@
 import httpx
 import pytest
 
+import backend.history as history
 from backend.weather import (
     _kma_forecast_cache,
     _kma_now_cache,
@@ -14,13 +15,17 @@ from backend.weather import (
     fetch_open_meteo,
     format_day_label,
     lat_lon_to_kma_grid,
+    record_observation,
     summarize_kma_period,
+    summarize_observed_period,
     summarize_period,
 )
 
 
 @pytest.fixture(autouse=True)
-def clear_caches():
+def clear_caches(tmp_path, monkeypatch):
+    # observations.db도 테스트마다 임시 경로로 격리해서 실제 운영 데이터를 건드리지 않게 함
+    monkeypatch.setattr(history, "DB_PATH", tmp_path / "test_observations.db")
     _kma_now_cache.clear()
     _open_meteo_cache.clear()
     _kma_forecast_cache.clear()
@@ -118,7 +123,7 @@ def test_build_kma_day_timeline_buckets_by_hour():
         "1500": {"temp": 28.0, "sky": 4, "pty": 1, "pop": 70},
         "2100": {"temp": 18.0, "sky": 3, "pty": 0, "pop": 10},
     }
-    timeline = build_kma_day_timeline(by_time, "오늘")
+    timeline = build_kma_day_timeline(by_time, "오늘", 60, 127, "20260726")
     assert timeline["label"] == "오늘"
 
     periods = {p["label"]: p for p in timeline["periods"]}
@@ -126,6 +131,38 @@ def test_build_kma_day_timeline_buckets_by_hour():
     assert periods["오전"]["max"] == 20.0
     assert periods["오후"]["desc"] == describe_kma_pty(1)
     assert periods["저녁"]["max"] == 18.0
+
+
+def test_summarize_observed_period_uses_strongest_pty():
+    observed = [
+        {"hour": 8, "temp": 19.0, "pty": 0},
+        {"hour": 9, "temp": 21.0, "pty": 4},
+    ]
+    result = summarize_observed_period(observed)
+    assert result["max"] == 21.0
+    assert result["min"] == 19.0
+    assert result["pop"] == 0  # 실황엔 강수확률 개념이 없어서 항상 0
+    assert result["hasRain"] is True
+    assert result["desc"] == describe_kma_pty(4)
+
+
+def test_summarize_observed_period_empty_returns_none():
+    assert summarize_observed_period([]) is None
+
+
+def test_build_kma_day_timeline_falls_back_to_recorded_observation():
+    # 예보 데이터가 전혀 없는 날 -> 오전 구간은 미리 기록해둔 실황으로 채워지고,
+    # 기록이 없는 새벽 구간은 그대로 "-" 이어야 함
+    record_observation(60, 127, "20260726", 8, 19.5, 0)
+
+    timeline = build_kma_day_timeline({}, "오늘", 60, 127, "20260726")
+    periods = {p["label"]: p for p in timeline["periods"]}
+
+    assert periods["오전"]["max"] == 19.5
+    assert periods["오전"]["min"] == 19.5
+    assert periods["오전"]["desc"] == describe_kma_pty(0)
+    assert periods["오전"]["pop"] == 0
+    assert periods["새벽"]["desc"] == "-"
 
 
 KMA_NCST_RESPONSE = {

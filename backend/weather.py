@@ -7,6 +7,8 @@ from urllib.parse import quote
 import httpx
 from cachetools import TTLCache
 
+from .history import get_observations, record_observation
+
 logger = logging.getLogger(__name__)
 
 # ---- 날씨 코드 -> 한글 설명 매핑 (src/constants.js와 동일) ----
@@ -287,6 +289,10 @@ async def fetch_kma(client: httpx.AsyncClient, nx: int, ny: int, kma_key: str) -
         "desc": describe_kma_pty(int(float(by_category.get("PTY", 0)))),
     }
     _kma_now_cache[key] = result
+
+    if "T1H" in by_category and "PTY" in by_category:
+        record_observation(nx, ny, base_date, int(base_time[:2]), float(by_category["T1H"]), int(float(by_category["PTY"])))
+
     return result
 
 
@@ -367,7 +373,25 @@ def summarize_kma_period(readings):
     }
 
 
-def build_kma_day_timeline(by_time, label):
+# 예보엔 없는(이미 지나간) 시간대를 위해, 검색할 때마다 기록해둔 실황(history.py)으로 대신 요약.
+# 실황엔 강수확률 개념이 없어서 pop은 항상 0으로 둠(예보처럼 확률로 보이지 않게).
+def summarize_observed_period(observed):
+    temps = [o["temp"] for o in observed if o.get("temp") is not None]
+    if not temps:
+        return None
+    pty_values = [o["pty"] for o in observed if o.get("pty") is not None]
+    rain = [p for p in pty_values if p > 0]
+    desc = describe_kma_pty(max(rain)) if rain else describe_kma_pty(0)
+    return {
+        "desc": desc,
+        "max": max(temps),
+        "min": min(temps),
+        "pop": 0,
+        "hasRain": len(rain) > 0,
+    }
+
+
+def build_kma_day_timeline(by_time, label, nx, ny, date_key):
     buckets = {"dawn": [], "morning": [], "afternoon": [], "evening": []}
     for fcst_time, reading in by_time.items():
         hour = int(fcst_time[:2])
@@ -378,9 +402,12 @@ def build_kma_day_timeline(by_time, label):
 
     periods = []
     for p in DAY_PERIODS:
-        summary = summarize_kma_period(buckets[p["key"]]) or {
-            "desc": "-", "max": None, "min": None, "pop": 0, "hasRain": False,
-        }
+        summary = summarize_kma_period(buckets[p["key"]])
+        if summary is None:
+            observed = get_observations(nx, ny, date_key, range(p["from"], p["to"]))
+            summary = summarize_observed_period(observed)
+        if summary is None:
+            summary = {"desc": "-", "max": None, "min": None, "pop": 0, "hasRain": False}
         periods.append({"label": p["label"], **summary})
     return {"label": label, "periods": periods}
 
@@ -451,7 +478,7 @@ async def fetch_kma_forecast(client: httpx.AsyncClient, nx: int, ny: int, kma_ke
 
     # 오늘/내일에 해당하는 앞의 2개 날짜만 4구간(새벽/오전/오후/저녁) 타임라인으로 재구성
     day_timelines = [
-        build_kma_day_timeline(by_date[date_key]["by_time"], label)
+        build_kma_day_timeline(by_date[date_key]["by_time"], label, nx, ny, date_key)
         for date_key, label in zip(sorted_dates[:2], ["오늘", "내일"])
     ]
 

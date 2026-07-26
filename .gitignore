@@ -1,4 +1,5 @@
 backend/.env
 backend/venv/
+backend/observations.db
 **/__pycache__/
 .pytest_cache/
