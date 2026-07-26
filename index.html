@@ -5,6 +5,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>날씨 데이터 대시보드</title>
 <link rel="stylesheet" href="style.css">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icons/icon.svg">
+<meta name="theme-color" content="#2563eb">
 </head>
 <body>
 
@@ -17,11 +21,16 @@
     <button type="submit">조회</button>
   </form>
 
+  <div id="chipArea">
+    <div id="favoriteChips" class="chip-row"></div>
+    <div id="recentChips" class="chip-row"></div>
+  </div>
+
   <p id="statusMsg" class="status"></p>
 
   <div id="resultsContainer" class="results-container"></div>
 </div>
 
-<script type="module" src="js/main.js"></script>
+<script type="module" src="src/main.js"></script>
 </body>
 </html>

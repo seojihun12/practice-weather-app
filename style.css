@@ -88,6 +88,34 @@ h1::before { content: "☁️ "; -webkit-text-fill-color: initial; }
 .search-form button:hover { transform: translateY(-1px); box-shadow: 0 10px 20px -6px rgba(37, 99, 235, 0.6); }
 .search-form button:active { transform: translateY(0); }
 
+.chip-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 10px;
+}
+.chip-row:empty { margin-top: 0; }
+
+.chip-row-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-faint);
+  margin-right: 2px;
+}
+
+.chip {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 5px 12px;
+  font-size: 12px;
+  color: var(--text);
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+.chip:hover { background: var(--accent-soft); border-color: #d5e6fd; }
+
 .status {
   font-size: 13px;
   color: var(--text-muted);
@@ -95,6 +123,22 @@ h1::before { content: "☁️ "; -webkit-text-fill-color: initial; }
   margin-top: 12px;
   padding-left: 4px;
 }
+
+.spinner-wrap {
+  grid-column: 1 / -1;
+  display: flex;
+  justify-content: center;
+  padding: 48px 0;
+}
+.spinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
 
 .results-container {
   margin-top: 22px;
@@ -127,8 +171,23 @@ h1::before { content: "☁️ "; -webkit-text-fill-color: initial; }
   font-weight: 700;
   margin-bottom: 14px;
   letter-spacing: -0.2px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 .place-name::before { content: "📍 "; }
+
+.favorite-btn {
+  margin-left: auto;
+  background: none;
+  border: none;
+  font-size: 18px;
+  line-height: 1;
+  color: var(--text-faint);
+  cursor: pointer;
+  padding: 2px;
+}
+.favorite-btn.active { color: #f59e0b; }
 
 .card-grid {
   display: grid;
@@ -289,6 +348,18 @@ h1::before { content: "☁️ "; -webkit-text-fill-color: initial; }
 .timeline-period.rain .tp-desc { color: var(--accent-dark); }
 .tp-temp { font-size: 11px; color: #475569; margin-top: 4px; }
 .tp-pop { font-size: 10px; color: var(--accent-dark); font-weight: 700; margin-top: 3px; }
+
+.tp-source {
+  font-size: 9px;
+  font-weight: 700;
+  color: var(--accent-dark);
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px dashed var(--border);
+  letter-spacing: 0.2px;
+}
+.tp-source:first-of-type { margin-top: 0; padding-top: 0; border-top: none; }
+.tp-source.kma { color: var(--kma); }
 
 .toggle-week-btn {
   display: flex;

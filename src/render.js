@@ -1,4 +1,5 @@
 import { weatherEmoji } from "./constants.js";
+import { isFavorite } from "./storage.js";
 
 // 소스 하나(Open-Meteo/기상청)의 현재 상태 카드 HTML
 function renderProviderBlock(name, p) {
@@ -52,20 +53,32 @@ function renderForecastDay(day, kmaForecast) {
     </div>`;
 }
 
-// 오늘/내일 한눈에 보기: 새벽·오전·오후·저녁 4구간 카드 한 줄
-function renderDayTimeline(timeline) {
+// 오늘/내일 한눈에 보기: 새벽·오전·오후·저녁 4구간 카드 한 줄. 같은 구간의 기상청 데이터가
+// 있으면(국내 도시) 구분선 아래에 기상청 줄을 덧붙여서 두 소스를 나란히 비교함.
+function renderDayTimeline(timeline, kmaTimeline) {
   return `
     <div class="timeline-row">
       <div class="timeline-label">${timeline.label}</div>
       <div class="timeline-periods">
-        ${timeline.periods.map(p => `
-          <div class="timeline-period${p.hasRain ? " rain" : ""}">
+        ${timeline.periods.map((p, i) => {
+          const kp = kmaTimeline?.periods?.[i];
+          const kmaPart = kp
+            ? `
+              <div class="tp-source kma">기상청</div>
+              <div class="tp-desc">${weatherEmoji(kp.desc)} ${kp.desc}</div>
+              ${kp.max !== null ? `<div class="tp-temp">${kp.max}° / ${kp.min}°</div>` : ""}
+              ${kp.pop > 0 ? `<div class="tp-pop">강수 ${kp.pop}%</div>` : ""}`
+            : "";
+          return `
+          <div class="timeline-period${p.hasRain || kp?.hasRain ? " rain" : ""}">
             <div class="tp-label">${p.label}</div>
+            <div class="tp-source">Open-Meteo</div>
             <div class="tp-desc">${weatherEmoji(p.desc)} ${p.desc}</div>
             ${p.max !== null ? `<div class="tp-temp">${p.max}° / ${p.min}°</div>` : ""}
             ${p.pop > 0 ? `<div class="tp-pop">강수 ${p.pop}%</div>` : ""}
-          </div>
-        `).join("")}
+            ${kmaPart}
+          </div>`;
+        }).join("")}
       </div>
     </div>`;
 }
@@ -83,10 +96,13 @@ export function renderCityBlock(data, index) {
 
   return `
     <div class="city-block">
-      <div class="place-name">${data.label}</div>
+      <div class="place-name">
+        ${data.label}
+        <button type="button" class="favorite-btn${isFavorite(data.query) ? " active" : ""}" data-city="${data.query}" title="즐겨찾기">${isFavorite(data.query) ? "★" : "☆"}</button>
+      </div>
 
-      <div class="section-label">오늘 · 내일 한눈에 보기</div>
-      ${data.openMeteo.dayTimelines.map(renderDayTimeline).join("")}
+      <div class="section-label">오늘 · 내일 한눈에 보기 (Open-Meteo · 기상청 비교)</div>
+      ${data.openMeteo.dayTimelines.map((t, i) => renderDayTimeline(t, data.kmaForecast?.dayTimelines?.[i])).join("")}
 
       <button type="button" class="toggle-week-btn" data-city-index="${index}">이번주 예보 자세히 보기 ▾</button>
 
