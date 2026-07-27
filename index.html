@@ -21,6 +21,8 @@
     <button type="submit">조회</button>
   </form>
 
+  <button type="button" id="windMapBtn" class="wind-map-btn">🌬️ 바람 지도 보기</button>
+
   <div id="chipArea">
     <div id="favoriteChips" class="chip-row"></div>
     <div id="recentChips" class="chip-row"></div>
@@ -29,6 +31,13 @@
   <p id="statusMsg" class="status"></p>
 
   <div id="resultsContainer" class="results-container"></div>
+</div>
+
+<div id="windMapModal" class="wind-map-modal hidden">
+  <div class="wind-map-panel">
+    <button type="button" id="windMapCloseBtn" class="wind-map-close">✕</button>
+    <iframe id="windMapFrame" class="wind-map-iframe" title="Windy 바람 지도" loading="lazy"></iframe>
+  </div>
 </div>
 
 <script type="module" src="src/main.js"></script>
