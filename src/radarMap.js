@@ -1,7 +1,7 @@
 import { loadLeaflet } from "./leafletLoader.js";
 
-// RainViewer: 무료, API 키 불필요. 과거 ~2시간치 실제 위성 적외선(구름) 타일 프레임을 제공해서
-// 그대로 순서대로 넘기면 Windy처럼 구름이 흘러가는 애니메이션이 됨.
+// RainViewer: 무료, API 키 불필요. (위성 구름 이미지는 public API에서 항상 비어있어서 강수 레이더로 대체함)
+// 과거 ~2시간치 실제 레이더 프레임을 그대로 순서대로 넘기면 비/눈이 흘러가는 애니메이션이 됨.
 const RAINVIEWER_API = "https://api.rainviewer.com/public/weather-maps.json";
 const FRAME_INTERVAL_MS = 500;
 
@@ -13,12 +13,12 @@ async function fetchFrameUrls() {
   const res = await fetch(RAINVIEWER_API);
   const data = await res.json();
   const host = data.host;
-  return (data.satellite?.infrared ?? []).map((frame) => `${host}${frame.path}/256/{z}/{x}/{y}/0/0_0.png`);
+  return (data.radar?.past ?? []).map((frame) => `${host}${frame.path}/256/{z}/{x}/{y}/2/1_1.png`);
 }
 
 function ensureMap(L) {
   if (map) return map;
-  map = L.map("cloudMapContainer", { zoomControl: true }).setView([36.3, 127.8], 6);
+  map = L.map("radarMapContainer", { zoomControl: true }).setView([36.3, 127.8], 6);
   L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
     attribution: "&copy; OpenStreetMap contributors",
     maxZoom: 18,
@@ -37,7 +37,7 @@ function stopPlayback() {
   }
 }
 
-async function loadCloudFrames(L) {
+async function loadRadarFrames(L) {
   frameLayers.forEach((layer) => map.removeLayer(layer));
   stopPlayback();
 
@@ -55,10 +55,10 @@ async function loadCloudFrames(L) {
   }, FRAME_INTERVAL_MS);
 }
 
-export function initCloudMap() {
-  const openBtn = document.getElementById("cloudMapBtn");
-  const closeBtn = document.getElementById("cloudMapCloseBtn");
-  const modal = document.getElementById("cloudMapModal");
+export function initRadarMap() {
+  const openBtn = document.getElementById("radarMapBtn");
+  const closeBtn = document.getElementById("radarMapCloseBtn");
+  const modal = document.getElementById("radarMapModal");
 
   function close() {
     modal.classList.add("hidden");
@@ -72,7 +72,7 @@ export function initCloudMap() {
     const L = await loadLeaflet();
     ensureMap(L);
     requestAnimationFrame(() => map.invalidateSize());
-    await loadCloudFrames(L);
+    await loadRadarFrames(L);
   });
 
   closeBtn.addEventListener("click", close);
