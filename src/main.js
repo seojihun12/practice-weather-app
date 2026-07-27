@@ -3,6 +3,7 @@ import { renderCityBlock } from "./render.js";
 import { drawHourlyChart, drawWeeklyChart } from "./charts.js";
 import { getFavorites, getRecents, addRecent, toggleFavorite } from "./storage.js";
 import { initWindMap } from "./windMap.js";
+import { initMyWindMap } from "./myWindMap.js";
 import { initInstallApp } from "./installApp.js";
 
 const form = document.getElementById("searchForm");
@@ -102,6 +103,7 @@ form.addEventListener("submit", (e) => {
 renderChips();
 searchCities(cityInput.value);
 initWindMap();
+initMyWindMap();
 initInstallApp();
 
 if ("serviceWorker" in navigator) {

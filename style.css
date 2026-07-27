@@ -490,3 +490,10 @@ body.wind-map-open {
   border: none;
   touch-action: auto; /* iframe 안 제스처는 Windy 자체 지도 조작으로 그대로 전달 */
 }
+
+.wind-arrow-icon {
+  background: none;
+  border: none;
+  pointer-events: none;
+  text-shadow: 0 0 3px rgba(255, 255, 255, 0.9);
+}

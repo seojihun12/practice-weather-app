@@ -9,6 +9,7 @@
 <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="icons/icon.svg">
 <meta name="theme-color" content="#2563eb">
+<link rel="preconnect" href="https://unpkg.com">
 </head>
 <body>
 
@@ -23,6 +24,7 @@
 
   <div class="action-row">
     <button type="button" id="windMapBtn" class="wind-map-btn">🌬️ 바람 지도 보기</button>
+    <button type="button" id="myMapBtn" class="wind-map-btn">🧭 내가 만든 지도</button>
     <button type="button" id="installAppBtn" class="wind-map-btn hidden">📲 앱으로 설치하기</button>
   </div>
   <p id="installHint" class="install-hint hidden">Safari 하단의 공유 버튼(⬆️)을 누른 뒤 "홈 화면에 추가"를 선택하세요.</p>
@@ -41,6 +43,13 @@
   <div class="wind-map-panel">
     <button type="button" id="windMapCloseBtn" class="wind-map-close">✕</button>
     <iframe id="windMapFrame" class="wind-map-iframe" title="Windy 바람 지도" loading="lazy"></iframe>
+  </div>
+</div>
+
+<div id="myMapModal" class="wind-map-modal hidden">
+  <div class="wind-map-panel">
+    <button type="button" id="myMapCloseBtn" class="wind-map-close">✕</button>
+    <div id="myMapContainer" class="wind-map-iframe"></div>
   </div>
 </div>
 
