@@ -399,11 +399,17 @@ h1::before { content: "☁️ "; -webkit-text-fill-color: initial; }
   .timeline-periods { grid-template-columns: repeat(2, 1fr); }
 }
 
+.action-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
 .wind-map-btn {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  margin-top: 12px;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 999px;
@@ -417,6 +423,19 @@ h1::before { content: "☁️ "; -webkit-text-fill-color: initial; }
 }
 .wind-map-btn:hover { background: var(--accent-soft); }
 .wind-map-btn:active { transform: scale(0.98); }
+.wind-map-btn.hidden { display: none; }
+
+.install-hint {
+  margin: 8px 0 0;
+  padding: 10px 14px;
+  background: var(--accent-soft);
+  border: 1px solid #d5e6fd;
+  border-radius: var(--radius-sm);
+  color: var(--accent-dark);
+  font-size: 12px;
+  font-weight: 600;
+}
+.install-hint.hidden { display: none; }
 
 .wind-map-modal {
   position: fixed;
@@ -427,8 +446,15 @@ h1::before { content: "☁️ "; -webkit-text-fill-color: initial; }
   justify-content: center;
   padding: 20px;
   z-index: 1000;
+  touch-action: none; /* 배경(백드롭)에서 시작된 터치는 페이지 스크롤/핀치줌으로 안 새게 막음 */
 }
 .wind-map-modal.hidden { display: none; }
+
+body.wind-map-open {
+  overflow: hidden;
+  position: fixed;
+  width: 100%;
+}
 
 .wind-map-panel {
   position: relative;
@@ -439,6 +465,7 @@ h1::before { content: "☁️ "; -webkit-text-fill-color: initial; }
   border-radius: var(--radius-lg);
   overflow: hidden;
   box-shadow: var(--shadow-card-hover);
+  touch-action: auto;
 }
 
 .wind-map-close {
@@ -461,4 +488,5 @@ h1::before { content: "☁️ "; -webkit-text-fill-color: initial; }
   width: 100%;
   height: 100%;
   border: none;
+  touch-action: auto; /* iframe 안 제스처는 Windy 자체 지도 조작으로 그대로 전달 */
 }

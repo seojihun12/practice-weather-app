@@ -21,7 +21,11 @@
     <button type="submit">조회</button>
   </form>
 
-  <button type="button" id="windMapBtn" class="wind-map-btn">🌬️ 바람 지도 보기</button>
+  <div class="action-row">
+    <button type="button" id="windMapBtn" class="wind-map-btn">🌬️ 바람 지도 보기</button>
+    <button type="button" id="installAppBtn" class="wind-map-btn hidden">📲 앱으로 설치하기</button>
+  </div>
+  <p id="installHint" class="install-hint hidden">Safari 하단의 공유 버튼(⬆️)을 누른 뒤 "홈 화면에 추가"를 선택하세요.</p>
 
   <div id="chipArea">
     <div id="favoriteChips" class="chip-row"></div>

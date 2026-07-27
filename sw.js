@@ -1,4 +1,4 @@
-const CACHE_NAME = "weather-app-shell-v2";
+const CACHE_NAME = "weather-app-shell-v3";
 const APP_SHELL = [
   "./",
   "index.html",
@@ -11,6 +11,7 @@ const APP_SHELL = [
   "src/constants.js",
   "src/storage.js",
   "src/windMap.js",
+  "src/installApp.js",
   "manifest.json",
   "icons/icon.svg",
 ];

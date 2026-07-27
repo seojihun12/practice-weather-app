@@ -3,6 +3,7 @@ import { renderCityBlock } from "./render.js";
 import { drawHourlyChart, drawWeeklyChart } from "./charts.js";
 import { getFavorites, getRecents, addRecent, toggleFavorite } from "./storage.js";
 import { initWindMap } from "./windMap.js";
+import { initInstallApp } from "./installApp.js";
 
 const form = document.getElementById("searchForm");
 const cityInput = document.getElementById("cityInput");
@@ -101,6 +102,7 @@ form.addEventListener("submit", (e) => {
 renderChips();
 searchCities(cityInput.value);
 initWindMap();
+initInstallApp();
 
 if ("serviceWorker" in navigator) {
   // 상대경로로 등록해야 GitHub Pages처럼 하위 경로(username.github.io/repo/)에 배포돼도 스코프가 깨지지 않음
