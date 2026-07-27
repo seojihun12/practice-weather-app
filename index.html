@@ -25,6 +25,7 @@
   <div class="action-row">
     <button type="button" id="windMapBtn" class="wind-map-btn">🌬️ 바람 지도 보기</button>
     <button type="button" id="myMapBtn" class="wind-map-btn">🧭 내가 만든 지도</button>
+    <button type="button" id="cloudMapBtn" class="wind-map-btn">☁️ 구름 지도 보기</button>
     <button type="button" id="installAppBtn" class="wind-map-btn hidden">📲 앱으로 설치하기</button>
   </div>
   <p id="installHint" class="install-hint hidden">Safari 하단의 공유 버튼(⬆️)을 누른 뒤 "홈 화면에 추가"를 선택하세요.</p>
@@ -50,6 +51,13 @@
   <div class="wind-map-panel">
     <button type="button" id="myMapCloseBtn" class="wind-map-close">✕</button>
     <div id="myMapContainer" class="wind-map-iframe"></div>
+  </div>
+</div>
+
+<div id="cloudMapModal" class="wind-map-modal hidden">
+  <div class="wind-map-panel">
+    <button type="button" id="cloudMapCloseBtn" class="wind-map-close">✕</button>
+    <div id="cloudMapContainer" class="wind-map-iframe"></div>
   </div>
 </div>
 

@@ -1,25 +1,9 @@
+import { loadLeaflet } from "./leafletLoader.js";
+
 // 기상청 대신 Open-Meteo를 쓰는 이유: 한 번의 요청으로 위경도 여러 개를 배열로 보낼 수 있어서,
 // 대한민국 전역 격자를 API 호출 한 번으로 받아올 수 있음(기상청은 격자점 하나당 호출 1번 필요).
 const KOREA_LAT_STEPS = [33.5, 34.5, 35.5, 36.5, 37.5, 38.5];
 const KOREA_LON_STEPS = [125, 126, 127, 128, 129];
-
-let leafletLoadPromise = null;
-function loadLeaflet() {
-  if (leafletLoadPromise) return leafletLoadPromise;
-  leafletLoadPromise = new Promise((resolve, reject) => {
-    const css = document.createElement("link");
-    css.rel = "stylesheet";
-    css.href = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css";
-    document.head.appendChild(css);
-
-    const script = document.createElement("script");
-    script.src = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js";
-    script.onload = () => resolve(window.L);
-    script.onerror = () => reject(new Error("Leaflet 로드 실패"));
-    document.head.appendChild(script);
-  });
-  return leafletLoadPromise;
-}
 
 function buildGridPoints() {
   const points = [];

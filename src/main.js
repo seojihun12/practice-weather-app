@@ -4,6 +4,7 @@ import { drawHourlyChart, drawWeeklyChart } from "./charts.js";
 import { getFavorites, getRecents, addRecent, toggleFavorite } from "./storage.js";
 import { initWindMap } from "./windMap.js";
 import { initMyWindMap } from "./myWindMap.js";
+import { initCloudMap } from "./cloudMap.js";
 import { initInstallApp } from "./installApp.js";
 
 const form = document.getElementById("searchForm");
@@ -104,6 +105,7 @@ renderChips();
 searchCities(cityInput.value);
 initWindMap();
 initMyWindMap();
+initCloudMap();
 initInstallApp();
 
 if ("serviceWorker" in navigator) {
